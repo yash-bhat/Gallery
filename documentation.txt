@@ -1,0 +1,216 @@
+DJANGO BACKEND - ADMIN APP
+
+1. Install django and djangoframework on the local
+
+2. Start services:
+django-admin startproject admin
+cd admin/
+python manage.py runserver
+
+This will start the service/django app
+
+3. Open the folder admin in an IDE
+
+4. Create:
+ requirements.txt - to be installed with python pip
+ Dockerfile - all docker requirements
+ docker-compose.yml - mentions volumes,db etc
+
+5. Stop the previous service and now run:
+docker-compose up
+
+This will start the Django app from docker
+
+6. Add the DB requirements to docker-compose.yml
+
+7. Connect to DB
+On PyCharm -> Database -> + -> Data Source -> MySQL
+Enter credentials and connect
+
+8. Get into docker terminal:
+#backend is the service name in docker-compose
+docker-compose exec backend sh
+python manage.py startapp products
+
+9. Navigate admin -> settings.py ->
+A. add "'restframework',
+    'corsheaders',
+    'products'" to the INSATLLED_APPS
+B. add "'corsheaders.middleware.CorsMiddleware'" to MIDDLEWARE
+C. add "CORS_ORIGIN_ALLOW_ALL = True" in the end
+D. change DATABASES information
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'admin',
+        'USER': 'root',
+        'PASSWORD': 'root',
+        'HOST': 'db',
+        'PORT': '3306'
+    }
+}
+
+
+10. Now create tables in mysql
+Go to products -> models.py and add fields etc
+
+11. Make migration
+"Migrations are Django's way of propagating changes you make to your models
+(adding a field, deleting a model, etc.) into your database schema."
+
+In docker terminal:(docker-compose exec backend sh)
+python manage.py makemigrations
+
+
+12. Run
+In docker terminal:(docker-compose exec backend sh)
+python manage.py migrate
+
+13. Add serializers.py, views.py and urls.py to products folder
+Modify urls.py in owner folder
+
+14. Test methods in POSTMAN app
+A. List method
+GET http://localhost:8000/api/products
+Send : empty [] is returned
+
+B. Create method. Make changes to method
+POST http://localhost:8000/api/products
+Body -> raw -> JSON
+-> {
+    "title": "title",
+    "image": "image",
+    "comments": "comments"
+}
+Send : Returns
+{
+    "id": 1,
+    "title": "title",
+    "image": "image",
+    "likes": 0,
+    "comments": "comments"
+}
+Check A now, there is one product present
+Add one more product and check again, 2 products present
+
+C. Retrieve method. Make changes to method
+#mention ID number in the end
+GET http://localhost:8000/api/products/1
+Send :  Returns
+{
+    "id": 1,
+    "title": "title",
+    "image": "image",
+    "likes": 0,
+    "comments": "comments"
+}
+GET http://localhost:8000/api/products/2
+Send : Returns
+{
+    "id": 2,
+    "title": "title2",
+    "image": "image2",
+    "likes": 0,
+    "comments": "comments2"
+}
+
+D. Update method. Make changes to method.
+PUT http://localhost:8000/api/products/2
+Change body JSON to :
+{
+    "title": "new title2",
+    "image": "image2",
+    "comments": "comments2"
+}
+Send : Returns #updated new title2
+{
+    "id": 2,
+    "title": "new title2",
+    "image": "image2",
+    "likes": 0,
+    "comments": "comments2"
+}
+
+E. Delete method. Make changes to method.
+DELETE http://localhost:8000/api/products/2
+Now check A and product 2 not present
+
+15. Add User class to views.py ato get a random user ID each time
+Update path in url.py
+
+
+FLASK BACKEND - MAIN APP
+
+1. Open new folder called 'main'
+Write requirements.txt
+Copy Dockerfile and docker-compose.yml from owner
+Modify last line of Dockerfile -> python main.py
+docker-compose -> default port of Flask is 5000 and incoming port let's use 8001 as 8000 occupied with django
+and mysql port -> 33066 (mysql for django was 33067)
+
+2. docker-compose up
+installs all req and starts service in docker
+
+3. Write main.py and test 'Hello' displayed at frontend
+
+4. Finish main.py and manager.py
+Restart docker -
+    docker-compose up
+Open docker terminal:
+    docker-compose exec backend bash
+In docker terminal:
+check commands with help
+    python manager.py db --help
+start migration repository
+    python manager.py db init
+start migration
+    python manager.py db migrate
+
+5. Connect to DB
+On PyCharm -> Database -> + -> Data Source -> MySQL
+Enter credentials and connect
+
+6. We dont see our tables yet
+In docker terminal:
+    python manager.py db upgrade
+Now refresh to see the tables -> product and product_user
+
+
+RABBITMQ - is a message queuing system
+This kind of system is ideal for connecting different components,
+building microservices, real-time streaming of data or when passing work to remote workers.
+
+We will use this here to connect the admin and main apps.
+
+1. Create new free account at cloudamqp.com
+Create a new instance and open it
+Copy AMQP URL
+
+2. Go to Django app
+A. Create new file products -> producer.py
+Copy the url here sa a comment for future reference
+Write code for RabbitMQ publish
+Goto views.py and add publish
+
+B. Create new file admin -> consumer.py
+Write code for RabbitMQ consume
+
+C. In docker terminal:(docker-compose exec backend bash)
+python consume.py
+Now goto postman and send: GET http://localhost:8000/api/products
+Back in docker terminal we can see:
+    Received in admin
+    b'hello'
+
+3. Copy consumer.py from Django to Flask app
+Change queue='main and 'Received in main'
+In docker terminal:(docker-compose exec backend bash)
+python consume.py
+Now goto postman and send: GET http://localhost:8000/api/products
+Back in docker terminal we can see:
+    Received in main
+    b'hello'
+
+This way we can send events between different apps.
+
